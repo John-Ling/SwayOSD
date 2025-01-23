@@ -11,11 +11,10 @@ use libc::{O_RDONLY, O_RDWR};
 use nix::poll::{poll, PollFd, PollFlags};
 use std::fs::{File, OpenOptions};
 use std::os::fd::AsRawFd;
-use std::os::fd::BorrowedFd;
 use std::os::unix::{fs::OpenOptionsExt, io::OwnedFd};
 use std::path::Path;
 use std::time::Duration;
-use zbus::object_server::InterfaceRef;
+use zbus::InterfaceRef;
 
 #[path = "../config.rs"]
 mod config;
@@ -43,11 +42,6 @@ impl LibinputInterface for Interface {
 }
 
 fn main() -> Result<(), zbus::Error> {
-	// Parse Config
-	let _input_config = config::backend::read_backend_config()
-		.expect("Failed to parse config file")
-		.input;
-
 	// Create DBUS server
 	let connection = task::block_on(DbusServer.init());
 	let object_server = connection.object_server();
@@ -58,11 +52,9 @@ fn main() -> Result<(), zbus::Error> {
 	input
 		.udev_assign_seat("seat0")
 		.expect("Could not assign seat0");
-	let fd = input.as_raw_fd();
-	assert!(fd != -1);
-	let borrowed_fd = unsafe { BorrowedFd::borrow_raw(input.as_raw_fd()) };
-	let pollfd = PollFd::new(borrowed_fd, PollFlags::POLLIN);
-	while poll(&mut [pollfd], None::<u8>).is_ok() {
+
+	let pollfd = PollFd::new(input.as_raw_fd(), PollFlags::POLLIN);
+	while poll(&mut [pollfd], -1).is_ok() {
 		event(&mut input, &iface_ref);
 	}
 
@@ -148,7 +140,7 @@ async fn call(event_info: EventInfo, iface_ref: InterfaceRef<DbusServer>) {
 
 	// Send signal
 	let signal_result = DbusServer::key_pressed(
-		iface_ref.signal_emitter(),
+		iface_ref.signal_context(),
 		event_info.ev_key as u16,
 		lock_state.unwrap_or(-1),
 	)

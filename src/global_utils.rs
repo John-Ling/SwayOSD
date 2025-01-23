@@ -68,15 +68,9 @@ pub(crate) fn handle_application_args(
 			}
 			"brightness" => {
 				let value = child.value().str().unwrap_or("");
-
 				match (value, value.parse::<i8>()) {
 					// Parse custom step values
-					(_, Ok(num)) => match value.get(..1) {
-						Some("+") => (ArgTypes::BrightnessRaise, Some(num.to_string())),
-						Some("-") => (ArgTypes::BrightnessLower, Some(num.abs().to_string())),
-						_ => (ArgTypes::BrightnessSet, Some(num.to_string())),
-					},
-
+					(_, Ok(num)) => (ArgTypes::BrightnessSet, Some(num.abs().to_string())),
 					("raise", _) => (ArgTypes::BrightnessRaise, None),
 					("lower", _) => (ArgTypes::BrightnessLower, None),
 					(e, _) => {
@@ -105,26 +99,6 @@ pub(crate) fn handle_application_args(
 				};
 				(ArgTypes::DeviceName, Some(value))
 			}
-			"custom-message" => {
-				let value = match child.value().str() {
-					Some(v) => v.to_string(),
-					None => {
-						eprintln!("--custom-message found but no message given");
-						return (HandleLocalStatus::FAILURE, actions);
-					}
-				};
-				(ArgTypes::CustomMessage, Some(value))
-			}
-			"custom-icon" => {
-				let value = match child.value().str() {
-					Some(v) => v.to_string(),
-					None => {
-						eprintln!("--custom-icon found but no icon given");
-						return (HandleLocalStatus::FAILURE, actions);
-					}
-				};
-				(ArgTypes::CustomIcon, Some(value))
-			}
 			"top-margin" => {
 				let value = child.value().str().unwrap_or("").trim();
 				match value.parse::<f32>() {
@@ -137,8 +111,6 @@ pub(crate) fn handle_application_args(
 					}
 				}
 			}
-			"style" => continue,
-			"config" => continue,
 			e => {
 				eprintln!("Unknown Variant Key: \"{}\"!...", e);
 				return (HandleLocalStatus::FAILURE, actions);
@@ -150,14 +122,12 @@ pub(crate) fn handle_application_args(
 	}
 
 	// sort actions so that they always get executed in the correct order
-	if actions.len() > 0 {
-		for i in 0..actions.len() - 1 {
-			for j in i + 1..actions.len() {
-				if actions[i].0 > actions[j].0 {
-					let temp = actions[i].clone();
-					actions[i] = actions[j].clone();
-					actions[j] = temp;
-				}
+	for i in 0..actions.len() - 1 {
+		for j in i + 1..actions.len() {
+			if actions[i].0 > actions[j].0 {
+				let temp = actions[i].clone();
+				actions[i] = actions[j].clone();
+				actions[j] = temp;
 			}
 		}
 	}

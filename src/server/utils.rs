@@ -1,11 +1,10 @@
-use gtk::glib::{system_config_dirs, user_config_dir};
+use gtk::glib::user_config_dir;
 use lazy_static::lazy_static;
 use substring::Substring;
 
 use std::{
 	fs::{self, File},
 	io::{prelude::*, BufReader},
-	path::{Path, PathBuf},
 	sync::Mutex,
 };
 
@@ -21,11 +20,8 @@ lazy_static! {
 	static ref MAX_VOLUME: Mutex<u8> = Mutex::new(PRIV_MAX_VOLUME_DEFAULT);
 	pub static ref DEVICE_NAME_DEFAULT: &'static str = "default";
 	static ref DEVICE_NAME: Mutex<Option<String>> = Mutex::new(None);
-	pub static ref ICON_NAME_DEFAULT: &'static str = "text-x-generic";
-	static ref ICON_NAME: Mutex<Option<String>> = Mutex::new(None);
 	pub static ref TOP_MARGIN_DEFAULT: f32 = 0.85_f32;
 	static ref TOP_MARGIN: Mutex<f32> = Mutex::new(*TOP_MARGIN_DEFAULT);
-	pub static ref SHOW_PERCENTAGE: Mutex<bool> = Mutex::new(false);
 }
 
 pub enum KeysLocks {
@@ -66,15 +62,6 @@ pub fn set_top_margin(margin: f32) {
 	*margin_mut = margin;
 }
 
-pub fn get_show_percentage() -> bool {
-	*SHOW_PERCENTAGE.lock().unwrap()
-}
-
-pub fn set_show_percentage(show: bool) {
-	let mut show_mut = SHOW_PERCENTAGE.lock().unwrap();
-	*show_mut = show;
-}
-
 pub fn get_device_name() -> Option<String> {
 	(*DEVICE_NAME.lock().unwrap()).clone()
 }
@@ -87,20 +74,6 @@ pub fn set_device_name(name: String) {
 pub fn reset_device_name() {
 	let mut global_name = DEVICE_NAME.lock().unwrap();
 	*global_name = None;
-}
-
-pub fn get_icon_name() -> Option<String> {
-	(*ICON_NAME.lock().unwrap()).clone()
-}
-
-pub fn set_icon_name(name: String) {
-	let mut icon_name = ICON_NAME.lock().unwrap();
-	*icon_name = Some(name);
-}
-
-pub fn reset_icon_name() {
-	let mut icon_name = ICON_NAME.lock().unwrap();
-	*icon_name = None;
 }
 
 pub fn get_key_lock_state(key: KeysLocks, led: Option<String>) -> bool {
@@ -378,32 +351,8 @@ pub fn volume_to_f64(volume: &Volume) -> f64 {
 	(100.0 * tmp_vol / f64::from(Volume::NORMAL.0 - Volume::MUTED.0)).round()
 }
 
-pub fn get_system_css_path() -> Option<PathBuf> {
-	let mut paths: Vec<PathBuf> = Vec::new();
-	for path in system_config_dirs() {
-		paths.push(path.join("swayosd").join("style.css"));
-	}
-
-	paths.push(Path::new("/usr/local/etc/xdg/swaync/style.css").to_path_buf());
-
-	let mut path: Option<PathBuf> = None;
-	for try_path in paths {
-		if try_path.exists() {
-			path = Some(try_path);
-			break;
-		}
-	}
-
-	path
-}
-
-pub fn user_style_path(custom_path: Option<PathBuf>) -> Option<String> {
-	let path = user_config_dir().join("swayosd").join("style.css");
-	if let Some(custom_path) = custom_path {
-		if custom_path.exists() {
-			return custom_path.to_str().map(|s| s.to_string());
-		}
-	}
+pub fn user_style_path() -> Option<String> {
+	let path = user_config_dir().join("swayosd/style.css");
 	if path.exists() {
 		return path.to_str().map(|s| s.to_string());
 	}

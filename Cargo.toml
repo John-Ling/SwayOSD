@@ -18,27 +18,22 @@ path = "src/input-backend/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Config dependencies
-toml = "0.8"
-serde = "1"
-serde_derive = "1"
 # GUI Dependencies
-gtk = { package = "gtk4", version = "0.9.1" }
-gtk-layer-shell = { package = "gtk4-layer-shell", version = "0.4.0" }
+gtk = "0.17.1"
+gtk-layer-shell = "0.6.1"
 shrinkwraprs = "0.3.0"
 cascade = "1.0.1"
 pulse = { version = "2.26.0", package = "libpulse-binding" }
 pulsectl-rs = "0.3.2"
 substring = "1.4.5"
 lazy_static = "1.4.0"
-zbus = "5"
+zbus = "3.14.1"
 # Backend Dependencies
 input = "0.8"
 libc = "0.2.147"
 evdev-rs = "0.6.1"
 async-std = "1.12.0"
-nix = { version = "0.29", features = ["poll"] }
+nix = "0.26.2"
 blight = "0.7.0"
 anyhow = "1.0.75"
 thiserror = "1.0.49"
-async-channel = "2.3.1"

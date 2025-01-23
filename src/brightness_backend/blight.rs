@@ -16,7 +16,6 @@ impl BrightnessBackendConstructor for Blight {
 
 impl BrightnessBackend for Blight {
 	fn get_current(&mut self) -> u32 {
-		self.device.reload();
 		self.device.current()
 	}
 

@@ -99,9 +99,9 @@ bindsym XF86MonBrightnessUp exec swayosd-client --brightness raise
 # Brightness lower
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness lower
 
-# Brightness raise with custom value('+' sign needed)
-bindsym XF86MonBrightnessUp  exec swayosd-client --brightness +10
-# Brightness lower with custom value('-' sign needed)
+# Brightness raise with custom value
+bindsym XF86MonBrightnessUp  exec swayosd-client --brightness 10
+# Brightness lower with custom value
 bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 ```
 
@@ -111,11 +111,6 @@ bindsym XF86MonBrightnessDown exec swayosd-client --brightness -10
 - If it is omitted the default audio device is used.
 - It only changes the target device for the current action that changes the volume.
 - You can list your input audio devices using `pactl list short sources`, for outputs replace `sources` with `sinks`.
-
-## Theming
-
-Since SwayOSD uses GTK, its appearance can be changed. Initially scss is used, which GTK does not support, so we need to use plain css. 
-The style conifg file is in `~/.config/swayosd/style.css` (it is not automatically generated). For reference you can check [this](https://github.com/ErikReider/SwayOSD/blob/main/data/style/style.scss) and [this](https://github.com/ErikReider/SwayOSD/issues/36).
 
 ## Brightness Control
 

@@ -11,13 +11,8 @@ use pulsectl::controllers::types::DeviceInfo;
 
 use crate::{
 	brightness_backend::BrightnessBackend,
-	utils::{
-		get_max_volume, get_show_percentage, get_top_margin, volume_to_f64, KeysLocks,
-		VolumeDeviceType,
-	},
+	utils::{get_max_volume, get_top_margin, volume_to_f64, KeysLocks, VolumeDeviceType},
 };
-
-use gtk_layer_shell::LayerShell;
 
 const ICON_SIZE: i32 = 32;
 
@@ -35,16 +30,17 @@ impl SwayosdWindow {
 	/// Create a new window and assign it to the given application.
 	pub fn new(app: &gtk::Application, display: &gdk::Display, monitor: &gdk::Monitor) -> Self {
 		let window = gtk::ApplicationWindow::new(app);
-		window.set_widget_name("osd");
-		window.add_css_class("osd");
+		window
+			.style_context()
+			.add_class(&gtk::STYLE_CLASS_OSD.to_string());
 
-		window.init_layer_shell();
-		window.set_monitor(monitor);
-		window.set_namespace("swayosd");
+		gtk_layer_shell::init_for_window(&window);
+		gtk_layer_shell::set_monitor(&window, monitor);
+		gtk_layer_shell::set_namespace(&window, "swayosd");
 
-		window.set_exclusive_zone(-1);
-		window.set_layer(gtk_layer_shell::Layer::Overlay);
-		window.set_anchor(gtk_layer_shell::Edge::Top, true);
+		gtk_layer_shell::set_exclusive_zone(&window, -1);
+		gtk_layer_shell::set_layer(&window, gtk_layer_shell::Layer::Overlay);
+		gtk_layer_shell::set_anchor(&window, gtk_layer_shell::Edge::Top, true);
 
 		// Set up the widgets
 		window.set_width_request(250);
@@ -54,45 +50,14 @@ impl SwayosdWindow {
 			..set_widget_name("container");
 		};
 
-		window.set_child(Some(&container));
-
-		// Disable mouse input
-		window.connect_map(|window| {
-			if let Some(surface) = window.surface() {
-				let region = gtk::cairo::Region::create();
-				surface.set_input_region(&region);
-			}
-		});
-
-		let update_margins = |window: &gtk::ApplicationWindow, monitor: &gdk::Monitor| {
-			// Monitor scale factor is not always correct
-			// Transform monitor height into coordinate system of window
-			let mon_height =
-				monitor.geometry().height() * monitor.scale_factor() / window.scale_factor();
-			// Calculate new margin
-			let bottom = mon_height - window.allocated_height();
-			let margin = (bottom as f32 * get_top_margin()).round() as i32;
-			window.set_margin(gtk_layer_shell::Edge::Top, margin);
-		};
+		window.add(&container);
 
 		// Set the window margin
-		update_margins(&window, monitor);
-		// Ensure window margin is updated when necessary
-		window.connect_scale_factor_notify(clone!(
-			#[weak]
-			monitor,
-			move |window| update_margins(window, &monitor)
-		));
-		monitor.connect_scale_factor_notify(clone!(
-			#[weak]
-			window,
-			move |monitor| update_margins(&window, monitor)
-		));
-		monitor.connect_geometry_notify(clone!(
-			#[weak]
-			window,
-			move |monitor| update_margins(&window, monitor)
-		));
+		window.connect_map(clone!(@strong monitor => move |win| {
+			let bottom = monitor.workarea().height() - win.allocated_height();
+			let margin = (bottom as f32 * get_top_margin()).round() as i32;
+			gtk_layer_shell::set_margin(win, gtk_layer_shell::Edge::Top, margin);
+		}));
 
 		Self {
 			window,
@@ -133,15 +98,11 @@ impl SwayosdWindow {
 
 		let icon = self.build_icon_widget(icon_name);
 		let progress = self.build_progress_widget(volume / max_volume);
-		let label = self.build_text_widget(Some(&format!("{}%", volume)));
 
 		progress.set_sensitive(!device.mute);
 
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
-		}
+		self.container.add(&icon);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -155,13 +116,9 @@ impl SwayosdWindow {
 		let brightness = brightness_backend.get_current() as f64;
 		let max = brightness_backend.get_max() as f64;
 		let progress = self.build_progress_widget(brightness / max);
-		let label = self.build_text_widget(Some(&format!("{}%", (brightness / max * 100.) as i32)));
 
-		self.container.append(&icon);
-		self.container.append(&progress);
-		if get_show_percentage() {
-			self.container.append(&label);
-		}
+		self.container.add(&icon);
+		self.container.add(&progress);
 
 		self.run_timeout();
 	}
@@ -199,42 +156,15 @@ impl SwayosdWindow {
 
 		icon.set_sensitive(state);
 
-		self.container.append(&icon);
-		self.container.append(&label);
-
-		self.run_timeout();
-	}
-
-	pub fn custom_message(&self, message: &str, icon_name: Option<&str>) {
-		self.clear_osd();
-
-		let label = self.build_text_widget(Some(message));
-
-		if let Some(icon_name) = icon_name {
-			let icon = self.build_icon_widget(icon_name);
-			self.container.append(&icon);
-			self.container.append(&label);
-			let box_spacing = self.container.spacing();
-			icon.connect_realize(move |icon| {
-				label.set_margin_end(
-					icon.allocation().width()
-						+ icon.margin_start()
-						+ icon.margin_end()
-						+ box_spacing,
-				);
-			});
-		} else {
-			self.container.append(&label);
-		}
+		self.container.add(&icon);
+		self.container.add(&label);
 
 		self.run_timeout();
 	}
 
 	/// Clear all container children
 	fn clear_osd(&self) {
-		let mut next = self.container.first_child();
-		while let Some(widget) = next {
-			next = widget.next_sibling();
+		for widget in self.container.children() {
 			self.container.remove(&widget);
 		}
 	}
@@ -253,14 +183,17 @@ impl SwayosdWindow {
 			},
 		)));
 
-		self.window.show();
+		self.window.show_all();
 	}
 
 	fn build_icon_widget(&self, icon_name: &str) -> gtk::Image {
-		let icon = gtk::gio::ThemedIcon::from_names(&[icon_name, "missing-symbolic"]);
+		let icon_name = match gtk::IconTheme::default() {
+			Some(theme) if theme.has_icon(icon_name) => icon_name,
+			_ => "missing-symbolic",
+		};
 
 		cascade! {
-			gtk::Image::from_gicon(&icon.upcast::<gtk::gio::Icon>());
+			gtk::Image::from_icon_name(Some(icon_name), gtk::IconSize::Invalid);
 			..set_pixel_size(ICON_SIZE);
 		}
 	}
@@ -270,7 +203,7 @@ impl SwayosdWindow {
 			gtk::Label::new(text);
 			..set_halign(gtk::Align::Center);
 			..set_hexpand(true);
-			..add_css_class("title-4");
+			..style_context().add_class("title-4");
 		}
 	}
 
@@ -279,7 +212,7 @@ impl SwayosdWindow {
 			gtk::ProgressBar::new();
 			..set_fraction(fraction);
 			..set_valign(gtk::Align::Center);
-			..set_hexpand(true);
+			..set_expand(true);
 		}
 	}
 }
